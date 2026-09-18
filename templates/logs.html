@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>系统日志 - ACP Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; background: #1a1d23; color: #d1d5db; padding: 20px; }
+  .header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+  .header h1 { font-size: 1.3rem; color: #e5e7eb; }
+  .header a { color: #4f6ef7; text-decoration: none; font-size: 0.85rem; }
+  .header a:hover { text-decoration: underline; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; align-items: center; }
+  .toolbar button { padding: 6px 14px; border: 1px solid #374151; background: #1f2937; color: #9ca3af; border-radius: 5px; cursor: pointer; font-size: 0.82rem; }
+  .toolbar button:hover { background: #374151; color: #e5e7eb; }
+  .toolbar button.on { background: #4f6ef7; border-color: #4f6ef7; color: #fff; }
+  .toolbar input { padding: 6px 10px; border: 1px solid #374151; background: #1f2937; color: #d1d5db; border-radius: 5px; font-size: 0.82rem; width: 220px; }
+  .toolbar input::placeholder { color: #6b7280; }
+  .stats { display: flex; gap: 16px; margin-bottom: 12px; font-size: 0.8rem; color: #9ca3af; }
+  .stats span { padding: 3px 10px; background: #1f2937; border-radius: 12px; }
+  .stats .err { color: #ef4444; }
+  .stats .warn { color: #f59e0b; }
+  .stats .info { color: #22c55e; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  th { text-align: left; padding: 8px 10px; background: #1f2937; color: #9ca3af; font-weight: 500; border-bottom: 1px solid #374151; position: sticky; top: 0; }
+  td { padding: 7px 10px; border-bottom: 1px solid #1f2937; vertical-align: top; }
+  tr:hover td { background: #1f2937; }
+  .badge { display: inline-block; padding: 1px 7px; border-radius: 3px; font-size: 0.75rem; font-weight: 500; }
+  .badge-info { background: #1e3a5f; color: #60a5fa; }
+  .badge-warn { background: #3d2e00; color: #fbbf24; }
+  .badge-err { background: #3b1010; color: #f87171; }
+  .time { color: #6b7280; font-family: 'Consolas', monospace; font-size: 0.8rem; white-space: nowrap; }
+  .source { color: #818cf8; }
+  em { color: #6b7280; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>📋 系统日志</h1>
+  <a href="/">← 返回大盘</a>
+</div>
+
+<div class="toolbar">
+  <button onclick="setCat('all')" data-cat="all" class="on">全部</button>
+  <button onclick="setCat('任务')" data-cat="任务">🔧 任务</button>
+  <button onclick="setCat('Agent')" data-cat="Agent">🤖 Agent</button>
+  <button onclick="setCat('知识库')" data-cat="知识库">📚 知识库</button>
+  <button onclick="setCat('系统')" data-cat="系统">🖥 系统</button>
+  <span style="margin:0 6px"></span>
+  <button onclick="setLevel('all')" data-lvl="all" class="on">全部</button>
+  <button onclick="setLevel('INFO')" data-lvl="INFO">INFO</button>
+  <button onclick="setLevel('WARNING')" data-lvl="WARNING">WARN</button>
+  <button onclick="setLevel('ERROR')" data-lvl="ERROR">ERROR</button>
+  <span style="flex:1"></span>
+  <input type="text" placeholder="搜索..." oninput="doFilter()" id="search">
+</div>
+
+<div class="stats" id="stats"></div>
+<table>
+  <thead><tr><th style="width:148px">时间</th><th style="width:66px">分类</th><th style="width:70px">级别</th><th style="width:90px">来源</th><th>消息</th></tr></thead>
+  <tbody id="tb"></tbody>
+</table>
+
+<script>
+let all = [];
+let cat = 'all', lvl = 'all', kw = '';
+
+fetch('/api/logs').then(r=>r.json()).then(d=>{
+  all = d.logs || [];
+  doFilter();
+});
+
+function setCat(c) {
+  cat = c;
+  document.querySelectorAll('[data-cat]').forEach(b=>b.classList.toggle('on', b.dataset.cat===c));
+  doFilter();
+}
+function setLevel(l) {
+  lvl = l;
+  document.querySelectorAll('[data-lvl]').forEach(b=>b.classList.toggle('on', b.dataset.lvl===l));
+  doFilter();
+}
+function doFilter() {
+  kw = document.getElementById('search').value.toLowerCase();
+  let items = all;
+  if (cat !== 'all') items = items.filter(x=>(x.category||'')===cat);
+  if (lvl !== 'all') items = items.filter(x=>(x.level||'')===lvl);
+  if (kw) items = items.filter(x=>(x.message||'').toLowerCase().includes(kw)||(x.source||'').toLowerCase().includes(kw));
+
+  let html = '';
+  items.forEach(x=>{
+    let lb = 'info';
+    if (x.level==='WARNING') lb='warn';
+    else if (x.level==='ERROR') lb='err';
+    html += '<tr>'+
+      '<td class="time">'+(x.time||'')+'</td>'+
+      '<td>'+(x.category||'')+'</td>'+
+      '<td><span class="badge badge-'+lb+'">'+(x.level||'')+'</span></td>'+
+      '<td class="source">'+(x.source||'')+'</td>'+
+      '<td>'+(x.message||'')+'</td>'+
+    '</tr>';
+  });
+  document.getElementById('tb').innerHTML = html || '<tr><td colspan="5"><em>无匹配日志</em></td></tr>';
+
+  let total = all.length;
+  let info = all.filter(x=>x.level==='INFO').length;
+  let warn = all.filter(x=>x.level==='WARNING').length;
+  let err = all.filter(x=>x.level==='ERROR').length;
+  document.getElementById('stats').innerHTML =
+    '<span>共 <b>'+total+'</b> 条</span>'+
+    '<span class="info">INFO '+info+'</span>'+
+    '<span class="warn">WARN '+warn+'</span>'+
+    '<span class="err">ERROR '+err+'</span>'+
+    (items.length!==total ? '<span>筛选后 <b>'+items.length+'</b> 条</span>' : '');
+}
+</script>
+</body>
+</html>
