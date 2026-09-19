@@ -24,7 +24,7 @@
 | 前端 | 原生 HTML5 / CSS3 / JavaScript（零框架依赖） |
 | 动画 | 纯 CSS @keyframes（GPU 加速，零 JS 动画开销） |
 | 数据源 | QwenPaw API + 本地 Markdown 文件双通道 |
-| 大模型 | 底层对接 QwenPaw 聚合的多个大模型（DeepSeek V4 Pro / MiniMax 2.7） |
+| 大模型 | 由所接入的 Agent 平台聚合（模型厂商无关，面板不感知具体厂商） |
 
 ## 架构
 
